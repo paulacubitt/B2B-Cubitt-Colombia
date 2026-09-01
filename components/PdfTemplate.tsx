@@ -19,9 +19,13 @@ const PdfTemplate: React.FC<PdfTemplateProps> = ({
   orderId,
   date,
   subtotal,
+  tax,
   total,
   totalQuantity
 }) => {
+  const calculatedTax = tax !== undefined ? tax : subtotal * 0.19;
+  const calculatedTotal = total || (subtotal + calculatedTax);
+
   return (
     <div className="fixed top-0 left-0 w-[816px] pointer-events-none opacity-0 z-[-1]">
       <div id="proforma-invoice-content" className="bg-white p-6 w-full text-black font-sans relative">
@@ -104,13 +108,17 @@ const PdfTemplate: React.FC<PdfTemplateProps> = ({
                       <span>Subtotal</span>
                       <span className="font-medium">{formatCOP(subtotal)}</span>
                   </div>
+                  <div className="flex justify-between text-xs text-gray-600">
+                      <span>IVA (19%)</span>
+                      <span className="font-medium">{formatCOP(calculatedTax)}</span>
+                  </div>
                   <div className="h-px bg-black my-1"></div>
                   <div className="flex justify-between text-lg font-black">
                       <span>Total</span>
-                      <span>{formatCOP(total, true)}</span>
+                      <span>{formatCOP(calculatedTotal, true)}</span>
                   </div>
                   <div className="text-[9px] text-gray-400 text-right font-semibold">
-                      * Precios en Pesos Colombianos (COP) con IVA incluido
+                      * Precios en Pesos Colombianos (COP) • IVA (19%) incluido en el total
                   </div>
               </div>
           </div>
@@ -130,7 +138,7 @@ const PdfTemplate: React.FC<PdfTemplateProps> = ({
                       <span className="block font-bold text-black mb-0.5">Términos</span>
                       Validez: 15 días calendario.<br />
                       Despacho: 24-48 horas tras confirmación.<br />
-                      Moneda: Pesos Colombianos (COP) • IVA incluido.
+                      Moneda: Pesos Colombianos (COP) • IVA (19%) incluido.
                   </div>
               </div>
           </div>

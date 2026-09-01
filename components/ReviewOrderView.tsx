@@ -29,13 +29,13 @@ const ReviewOrderView: React.FC<ReviewOrderViewProps> = ({
 }) => {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   
-  // Usar datos de la orden existente o generar nuevos - En Colombia precios ya incluyen IVA
+  // Usar datos de la orden existente o calcular con 19% de IVA
   const orderId = existingOrder 
     ? existingOrder.id.replace('ORD-', '') 
     : useMemo(() => `${Date.now().toString().slice(-6)}${Math.floor(100 + Math.random() * 900)}`, []);
   const subtotal = existingOrder ? existingOrder.subtotal : cart.reduce((acc, curr) => acc + (curr.variant.price * curr.quantity), 0);
-  const tax = 0; // Precios en Colombia ya tienen IVA incluido, no se calcula impuesto adicional
-  const total = existingOrder ? existingOrder.total : subtotal;
+  const tax = existingOrder ? (existingOrder.tax ?? subtotal * 0.19) : subtotal * 0.19;
+  const total = existingOrder ? existingOrder.total : subtotal + tax;
   const totalQuantity = cart.reduce((acc, curr) => acc + curr.quantity, 0);
   const orderDate = existingOrder ? existingOrder.date : new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   const pdfDate = existingOrder ? existingOrder.date.split(',')[0] : new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -48,7 +48,9 @@ const ReviewOrderView: React.FC<ReviewOrderViewProps> = ({
     cart.forEach((item) => {
       text += `- ${item.product.title} (${item.variant.option1}) - Cant: ${item.quantity} - Precio: ${formatCOP(item.variant.price)}${br}`;
     });
-    text += `${br}Total: ${formatCOP(total, true)}${br}`;
+    text += `${br}Subtotal: ${formatCOP(subtotal)}${br}`;
+    text += `IVA (19%): ${formatCOP(tax)}${br}`;
+    text += `Total: ${formatCOP(total, true)}${br}`;
     text += `Cantidad de productos: ${totalQuantity}`;
     return text;
   };
@@ -60,7 +62,7 @@ const ReviewOrderView: React.FC<ReviewOrderViewProps> = ({
       date: orderDate,
       items: [...cart],
       subtotal,
-      tax: 0,
+      tax,
       total,
       status: status
     };
@@ -213,7 +215,7 @@ const ReviewOrderView: React.FC<ReviewOrderViewProps> = ({
         <div className="bg-gray-50 p-4 md:p-10 border-t border-gray-100">
             <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-8">
                 <div className="text-[10px] text-gray-400 max-w-xs leading-relaxed hidden mr-auto md:block">
-                    * Los precios y disponibilidad están sujetos a cambios. Precios en Pesos Colombianos (COP) con IVA incluido. Esta proforma tiene una validez de 15 días.
+                    * Los precios y disponibilidad están sujetos a cambios. Precios en Pesos Colombianos (COP). Se aplica IVA del 19%. Esta proforma tiene una validez de 15 días.
                 </div>
                 <div className="w-full md:w-auto space-y-3">
                     <div className="flex justify-between md:justify-end gap-12 text-sm md:text-xs font-bold text-gray-500 uppercase tracking-wider">
@@ -224,11 +226,15 @@ const ReviewOrderView: React.FC<ReviewOrderViewProps> = ({
                        <span>Subtotal</span>
                        <span className="text-gray-900">{formatCOP(subtotal)}</span>
                     </div>
+                    <div className="flex justify-between md:justify-end gap-12 text-sm md:text-xs font-bold text-gray-500 uppercase tracking-wider">
+                       <span>IVA (19%)</span>
+                       <span className="text-gray-900">{formatCOP(tax)}</span>
+                    </div>
                     <div className="w-full h-px bg-gray-200 my-2"></div>
                     <div className="flex justify-between md:justify-end gap-12 items-baseline">
                         <div>
                             <div className="text-gray-900 text-sm font-black uppercase tracking-widest">Total Final</div>
-                            <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">IVA Incluido</div>
+                            <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">IVA (19%) Incluido</div>
                         </div>
                         <div className="text-2xl md:text-4xl font-black text-gray-900 tracking-tighter">{formatCOP(total, true)}</div>
                     </div>
