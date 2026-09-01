@@ -1,0 +1,8 @@
+{
+  "name": "Cubitt B2B Sales Portal Colombia",
+  "description": "A high-end corporate sales platform for Cubitt Colombia, featuring a minimalist Apple-inspired interface for seamless bulk ordering and catalog management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

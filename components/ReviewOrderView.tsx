@@ -1,0 +1,275 @@
+
+import React, { useState, useMemo } from 'react';
+import { CartItem, Order, User } from '../types';
+import PdfTemplate from './PdfTemplate';
+import { formatCOP } from '../utils';
+
+interface ReviewOrderViewProps {
+  user?: User;
+  cart: CartItem[];
+  onUpdateQuantity: (sku: string, qty: number) => void;
+  onRemove: (sku: string) => void;
+  onBack: () => void;
+  onConfirm: () => void;
+  onSaveOrder: (order: Order) => void;
+  isReadOnly?: boolean;
+  existingOrder?: Order;
+}
+
+const ReviewOrderView: React.FC<ReviewOrderViewProps> = ({ 
+  user,
+  cart, 
+  onUpdateQuantity, 
+  onRemove, 
+  onBack, 
+  onConfirm,
+  onSaveOrder,
+  isReadOnly = false,
+  existingOrder
+}) => {
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  
+  // Usar datos de la orden existente o generar nuevos - En Colombia precios ya incluyen IVA
+  const orderId = existingOrder 
+    ? existingOrder.id.replace('ORD-', '') 
+    : useMemo(() => `${Date.now().toString().slice(-6)}${Math.floor(100 + Math.random() * 900)}`, []);
+  const subtotal = existingOrder ? existingOrder.subtotal : cart.reduce((acc, curr) => acc + (curr.variant.price * curr.quantity), 0);
+  const tax = 0; // Precios en Colombia ya tienen IVA incluido, no se calcula impuesto adicional
+  const total = existingOrder ? existingOrder.total : subtotal;
+  const totalQuantity = cart.reduce((acc, curr) => acc + curr.quantity, 0);
+  const orderDate = existingOrder ? existingOrder.date : new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const pdfDate = existingOrder ? existingOrder.date.split(',')[0] : new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+  
+  const buildOrderText = () => {
+    const br = "\n";
+    let text = `Nombre: ${user?.companyName || 'Cliente'}${br}`;
+    text += `Tipo de precio: ${user?.priceType || 'Estándar B2B'}${br}${br}`;
+    text += `Productos:${br}`;
+    cart.forEach((item) => {
+      text += `- ${item.product.title} (${item.variant.option1}) - Cant: ${item.quantity} - Precio: ${formatCOP(item.variant.price)}${br}`;
+    });
+    text += `${br}Total: ${formatCOP(total, true)}${br}`;
+    text += `Cantidad de productos: ${totalQuantity}`;
+    return text;
+  };
+
+  const saveToHistory = (status: 'Paid' | 'Pending') => {
+    if (isReadOnly) return; // No guardar si estamos viendo el historial
+    const newOrder: Order = {
+      id: `ORD-${orderId}`,
+      date: orderDate,
+      items: [...cart],
+      subtotal,
+      tax: 0,
+      total,
+      status: status
+    };
+    onSaveOrder(newOrder);
+  };
+
+  const handleWhatsApp = () => {
+    saveToHistory('Pending');
+    window.open(`https://wa.me/573242565268?text=${encodeURIComponent(buildOrderText())}`, '_blank');
+    onConfirm();
+  };
+
+  const handleDownloadPDF = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      const element = document.getElementById('proforma-invoice-content');
+      if (!element) throw new Error('No se encontró el contenido para generar el PDF');
+
+      // @ts-ignore
+      const html2pdf = window.html2pdf;
+      if (typeof html2pdf !== 'function') throw new Error('Librería PDF no cargada');
+      
+      const clientName = user?.companyName?.replace(/[^a-zA-Z0-9]/g, '_') || 'Cliente';
+      
+      const opt = {
+        margin:       0.3, 
+        filename:     `${clientName}_PF_${orderId}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false, scrollY: 0 },
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' },
+        pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+
+      await html2pdf().set(opt).from(element).save();
+      
+      if (!isReadOnly) {
+          saveToHistory('Pending');
+          // Esperar un momento antes de limpiar para que el usuario perciba la acción
+          setTimeout(() => onConfirm(), 2000);
+      }
+      
+    } catch (error) {
+      console.error(error);
+      alert('Error generando PDF. Intente nuevamente.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  if (cart.length === 0 && !isReadOnly) {
+     return (
+        <div className="h-full flex flex-col items-center justify-center p-8 text-center animate-in fade-in">
+           <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+              <span className="material-icons text-4xl text-gray-400">shopping_cart_off</span>
+           </div>
+           <h2 className="text-2xl font-bold text-gray-900 mb-2">Tu carrito está vacío</h2>
+           <p className="text-gray-500 mb-8">Agrega productos del catálogo para generar una proforma.</p>
+           <button onClick={onBack} className="bg-black text-white px-8 py-3 rounded-xl font-bold text-sm uppercase tracking-wider hover:scale-105 transition-transform">
+              Ir al Catálogo
+           </button>
+        </div>
+     );
+  }
+
+  return (
+    <div className="h-full flex flex-col max-w-[1280px] mx-auto p-4 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 md:pb-8">
+      
+      {/* Header Interactivo */}
+      <div className="flex items-center gap-4 mb-8">
+        <button 
+            onClick={onBack}
+            className="w-12 h-12 flex flex-shrink-0 items-center justify-center rounded-full bg-white border border-gray-200 hover:bg-gray-50 transition-colors shadow-sm"
+        >
+            <span className="material-icons text-gray-600">arrow_back</span>
+        </button>
+        <div>
+           <h2 className="text-xl md:text-3xl font-black text-gray-900 tracking-tight">
+               {isReadOnly ? `Detalles del Pedido: ORD-${orderId}` : 'Resumen de Orden'}
+           </h2>
+           <p className="text-xs md:text-sm text-gray-500 font-medium">
+               {isReadOnly ? `Realizado el ${orderDate}` : 'Revisa los items antes de exportar'}
+           </p>
+        </div>
+      </div>
+
+      <div className="flex-1 bg-white rounded-[32px] shadow-xl border border-gray-100 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-y-auto p-0 md:p-8">
+            <table className="w-full">
+                <thead>
+                    <tr className="text-left text-[10px] text-gray-400 uppercase tracking-[0.2em] border-b border-gray-100 bg-gray-50/50">
+                        <th className="py-4 pl-6 md:pl-4 font-black">Producto / SKU</th>
+                        <th className="py-4 font-black text-center">Cantidad</th>
+                        <th className="py-4 font-black text-right hidden md:table-cell">Precio Unit.</th>
+                        <th className="py-4 pr-6 md:pr-4 font-black text-right">Total</th>
+                        {!isReadOnly && <th className="py-4 w-10"></th>}
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                    {cart.map((item, idx) => (
+                        <tr key={`${item.variant.sku}-${idx}`} className="group hover:bg-gray-50/50 transition-colors">
+                            <td className="py-4 pl-6 md:pl-4">
+                                <div className="flex items-center gap-3 md:gap-4">
+                                   <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg bg-gray-50 border border-gray-100 p-1 flex-shrink-0">
+                                      <img src={item.variant.image} className="w-full h-full object-contain mix-blend-multiply" alt="" />
+                                   </div>
+                                   <div>
+                                      <div className="font-bold text-gray-900 text-xs md:text-base leading-tight md:leading-normal">{item.product.title}</div>
+                                      <div className="flex flex-col md:flex-row md:items-center gap-1 mt-1">
+                                          <span className="text-[9px] md:text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200 font-mono font-bold tracking-wide w-max">
+                                              {item.variant.sku}
+                                          </span>
+                                          <span className="text-[9px] md:text-[10px] text-gray-400 font-medium uppercase tracking-wider">{item.variant.option1}</span>
+                                      </div>
+                                   </div>
+                                </div>
+                            </td>
+                            <td className="py-4 text-center">
+                                {isReadOnly ? (
+                                    <span className="text-sm font-black text-gray-900">{item.quantity}</span>
+                                ) : (
+                                    <div className="inline-flex items-center bg-white border border-gray-200 rounded-lg h-8 shadow-sm">
+                                       <button onClick={() => onUpdateQuantity(item.variant.sku, item.quantity - 1)} className="px-2.5 h-full hover:bg-gray-50 text-gray-500 font-bold">-</button>
+                                       <span className="w-8 text-center text-xs font-bold text-gray-900">{item.quantity}</span>
+                                       <button onClick={() => onUpdateQuantity(item.variant.sku, item.quantity + 1)} className="px-2.5 h-full hover:bg-gray-50 text-gray-500 font-bold">+</button>
+                                    </div>
+                                )}
+                            </td>
+                            <td className="py-4 text-right text-gray-600 font-medium hidden md:table-cell">
+                                {formatCOP(item.variant.price)}
+                            </td>
+                            <td className="py-4 pr-6 md:pr-4 text-right font-black text-gray-900 text-xs md:text-base">
+                                {formatCOP(item.variant.price * item.quantity)}
+                            </td>
+                            {!isReadOnly && (
+                                <td className="py-4 text-right pr-4">
+                                    <button 
+                                        onClick={() => onRemove(item.variant.sku)}
+                                        className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors"
+                                    >
+                                        <span className="material-icons text-lg">delete</span>
+                                    </button>
+                                </td>
+                            )}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+
+        <div className="bg-gray-50 p-4 md:p-10 border-t border-gray-100">
+            <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-8">
+                <div className="text-[10px] text-gray-400 max-w-xs leading-relaxed hidden mr-auto md:block">
+                    * Los precios y disponibilidad están sujetos a cambios. Precios en Pesos Colombianos (COP) con IVA incluido. Esta proforma tiene una validez de 15 días.
+                </div>
+                <div className="w-full md:w-auto space-y-3">
+                    <div className="flex justify-between md:justify-end gap-12 text-sm md:text-xs font-bold text-gray-500 uppercase tracking-wider">
+                       <span>Cantidad Total</span>
+                       <span className="text-gray-900">{totalQuantity} unds</span>
+                    </div>
+                    <div className="flex justify-between md:justify-end gap-12 text-sm md:text-xs font-bold text-gray-500 uppercase tracking-wider">
+                       <span>Subtotal</span>
+                       <span className="text-gray-900">{formatCOP(subtotal)}</span>
+                    </div>
+                    <div className="w-full h-px bg-gray-200 my-2"></div>
+                    <div className="flex justify-between md:justify-end gap-12 items-baseline">
+                        <div>
+                            <div className="text-gray-900 text-sm font-black uppercase tracking-widest">Total Final</div>
+                            <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">IVA Incluido</div>
+                        </div>
+                        <div className="text-2xl md:text-4xl font-black text-gray-900 tracking-tighter">{formatCOP(total, true)}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div className={`grid grid-cols-1 ${isReadOnly ? 'md:grid-cols-1 max-w-md ml-auto' : 'md:grid-cols-2'} gap-4`}>
+                 {!isReadOnly && (
+                     <button 
+                        onClick={handleWhatsApp}
+                        className="py-4 bg-white/80 backdrop-blur-xl border border-slate-200/80 rounded-2xl font-bold text-xs uppercase tracking-widest text-slate-900 hover:bg-white transition-all flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(0,0,0,0.04)] active:scale-[0.99]"
+                    >
+                        <span className="material-icons text-emerald-500">chat</span>
+                        Confirmar WhatsApp
+                    </button>
+                 )}
+                <button 
+                    onClick={handleDownloadPDF}
+                    disabled={isGeneratingPdf}
+                    className="py-4 bg-slate-900/90 hover:bg-slate-900 text-white rounded-2xl font-bold text-xs uppercase tracking-widest shadow-[0_10px_25px_rgba(15,23,42,0.12),inset_0_1px_1px_rgba(255,255,255,0.2)] backdrop-blur-xl border border-white/20 transition-all flex items-center justify-center gap-3 disabled:opacity-70 active:scale-[0.99]"
+                >
+                    {isGeneratingPdf ? <span className="material-icons animate-spin text-lg">refresh</span> : <span className="material-icons text-lg">picture_as_pdf</span>}
+                    {isGeneratingPdf ? 'Generando PDF...' : 'Descargar PDF Proforma'}
+                </button>
+            </div>
+        </div>
+      </div>
+
+      <PdfTemplate 
+        user={user}
+        cart={cart}
+        orderId={orderId}
+        date={pdfDate}
+        subtotal={subtotal}
+        tax={tax}
+        total={total}
+        totalQuantity={totalQuantity}
+      />
+
+    </div>
+  );
+};
+
+export default ReviewOrderView;
