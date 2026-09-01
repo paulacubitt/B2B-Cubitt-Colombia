@@ -93,7 +93,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, onSelect, selectedC
                  ) : null}
               </div>
               <div className="text-right">
-                <span className={`block font-black text-sm md:text-lg text-black ${product.isOutOfStock ? 'text-gray-300' : ''}`}>
+                <span className={`block font-bold text-xs md:text-sm text-black ${product.isOutOfStock ? 'text-gray-300' : ''}`}>
                   {formatCOP(product.variants[0].price)}
                 </span>
               </div>
