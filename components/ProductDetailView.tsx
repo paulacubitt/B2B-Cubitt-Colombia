@@ -29,7 +29,6 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({ product, onAddToC
   }, [product]);
 
   const currentQty = typeof quantity === 'number' ? quantity : 1;
-  const itemTotal = (selectedVariant.price * currentQty).toFixed(2);
 
   const handleAdd = () => {
     if (currentQty <= 0 || isAddingRef.current) return;

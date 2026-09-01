@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Product, ProductVariant } from '../types';
+import { formatCOP } from '../utils';
 
 interface ProductModalProps {
   product: Product;
@@ -53,7 +54,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, onClose, onAdd }) 
             <span className="inline-block px-3 py-1 bg-black text-white text-[10px] font-bold rounded-full mb-4">IN STOCK</span>
             <div className="text-[#86868b] font-medium text-sm mb-1">{product.category}</div>
             <h2 className="text-4xl font-semibold tracking-tight mb-2">{product.title}</h2>
-            <div className="text-2xl font-normal text-[#1d1d1f] mb-6">${selectedVariant.price.toFixed(2)} / unit</div>
+            <div className="text-2xl font-normal text-[#1d1d1f] mb-6">{formatCOP(selectedVariant.price)} / unit</div>
             <p className="text-[#424245] leading-relaxed text-[15px] font-light">
               {product.description}
             </p>
@@ -98,7 +99,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, onClose, onAdd }) 
                   </button>
                   <input 
                     type="number" 
-                    className="w-20 text-center border-none focus:ring-0 font-medium"
+                    className="w-20 text-center border-none focus:ring-0 font-medium" 
                     value={quantity}
                     onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
                   />
@@ -109,7 +110,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, onClose, onAdd }) 
                     <span className="material-symbols-outlined text-xl">add</span>
                   </button>
                 </div>
-                <div className="text-xs text-[#86868b] font-medium">SKU: {selectedVariant.sku} &bull; MSRP: ${selectedVariant.compareAtPrice?.toFixed(2) || 'N/A'}</div>
+                <div className="text-xs text-[#86868b] font-medium">SKU: {selectedVariant.sku} &bull; MSRP: {selectedVariant.compareAtPrice ? formatCOP(selectedVariant.compareAtPrice) : 'N/A'}</div>
               </div>
             </div>
           </div>

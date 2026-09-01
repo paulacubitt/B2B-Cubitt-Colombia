@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { CartItem } from '../types';
+import { formatCOP } from '../utils';
 
 interface CartSheetProps {
   cart: CartItem[];
@@ -54,7 +55,7 @@ const CartSheet: React.FC<CartSheetProps> = ({ cart, onClose, onRemove, onUpdate
                         <span className="text-[11px] w-6 text-center font-bold text-slate-900">{item.quantity}</span>
                         <button onClick={() => onUpdate(item.variant.sku, item.quantity + 1)} className="px-1.5 font-bold text-slate-500 hover:text-slate-900">+</button>
                       </div>
-                      <span className="text-xs font-black text-slate-900">${(item.variant.price * item.quantity).toFixed(2)}</span>
+                      <span className="text-xs font-black text-slate-900">{formatCOP(item.variant.price * item.quantity)}</span>
                     </div>
                   </div>
                 </div>
@@ -66,7 +67,7 @@ const CartSheet: React.FC<CartSheetProps> = ({ cart, onClose, onRemove, onUpdate
         <div className="mt-auto pt-6 border-t border-slate-200/60">
           <div className="flex justify-between items-center mb-5">
             <span className="text-slate-400 font-black uppercase tracking-widest text-[10px]">Subtotal Estimado</span>
-            <span className="text-2xl font-black text-slate-900">${subtotal.toFixed(2)}</span>
+            <span className="text-2xl font-black text-slate-900">{formatCOP(subtotal)}</span>
           </div>
           <button 
             disabled={cart.length === 0}
